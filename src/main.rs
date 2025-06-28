@@ -25,32 +25,6 @@ fn split_into_n_parts<T: Clone>(vec: Vec<T>, n: usize) -> Vec<Vec<T>> {
     result
 }
 
-// fn split_into_n_parts<T: Clone, const N: usize>(vec: Vec<T>) -> [Vec<T>; N] {
-//     let len = vec.len();
-//     let base = len / N;
-//     let remainder = len % N;
-//
-//     let mut result = Vec::with_capacity(N);
-//     let mut start = 0;
-//
-//     for i in 0..N {
-//         let extra = if i < remainder { 1 } else { 0 };
-//         let end = start + base + extra;
-//         result.push(vec[start..end].to_vec());
-//         start = end;
-//     }
-//
-//     [
-//         result[0],
-//         result[1],
-//         result[2],
-//         result[3],
-//         result[4],
-//         result[5],
-//         result[6],
-//     ]
-// }
-
 #[derive(Debug)]
 pub struct VerseEntry {
     date: NaiveDate,
@@ -106,7 +80,6 @@ impl VerseList {
 #[derive(Clone, Debug)]
 pub struct Verse<'a> {
     weeks_in: i64,
-    // reference: &'a String,
     reference: Cow<'a, String>,
 }
 
@@ -180,13 +153,6 @@ impl Frequency {
     }
 }
 
-// pub struct Week(u32);
-
-// pub struct Verse {
-//     completion: String,
-//     reference: String,
-// }
-
 #[derive(Debug)]
 pub struct VersesForADay<'a> {
     daily: Vec<Verse<'a>>,
@@ -196,12 +162,10 @@ pub struct VersesForADay<'a> {
 
 #[derive(Debug)]
 pub struct VersesForAWeek<'a> {
-    // days: [VersesForADay; 7],
     days: Vec<VersesForADay<'a>>,
 }
 
 impl<'a> VersesForAWeek<'a> {
-    // pub fn new(verses: &'a Vec<Verse>, n: i64) -> Self {
     pub fn new<'b>(verses: &'b Vec<Verse<'a>>, n: i64) -> Self {
         let daily: Vec<_> = verses
             .iter()
@@ -235,7 +199,6 @@ impl<'a> VersesForAWeek<'a> {
 
 #[derive(Debug)]
 pub struct VersesForAMonth<'a> {
-    // weeks: [VersesForAWeek<'a>; 4],
     weeks: Vec<VersesForAWeek<'a>>,
 }
 
@@ -247,20 +210,7 @@ impl<'a> VersesForAMonth<'a> {
                 VersesForAWeek::new(&verses, n)
             })
             .collect_vec();
-        // vec![
-        //     VersesForAWeek::new(verses, 1),
-        //     VersesForAWeek::new(verses, 2),
-        //     VersesForAWeek::new(verses, 3),
-        //     VersesForAWeek::new(verses, 4),
-        // ];
         Self { weeks }
-        // let week1 = VersesForAWeek { days: vec![] };
-        // let week2 = VersesForAWeek { days: vec![] };
-        // let week3 = VersesForAWeek { days: vec![] };
-        // let week4 = VersesForAWeek { days: vec![] };
-        // Self {
-        //     weeks: [week1, week2, week3, week4],
-        // }
     }
 }
 
