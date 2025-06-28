@@ -2,6 +2,8 @@
 
 pub type AnyResult<T> = Result<T, Box<dyn std::error::Error>>;
 
+use std::borrow::Cow;
+
 use chrono::NaiveDate;
 use itertools::Itertools;
 
@@ -76,7 +78,7 @@ impl VerseEntry {
         let weeks_in = self.weeks_in(today);
         Verse {
             weeks_in,
-            reference: self.reference.clone(),
+            reference: Cow::Owned(self.reference.clone()),
         }
     }
 }
@@ -102,14 +104,25 @@ impl VerseList {
 }
 
 #[derive(Clone, Debug)]
-pub struct Verse {
+pub struct Verse<'a> {
     weeks_in: i64,
-    reference: String,
+    // reference: &'a String,
+    reference: Cow<'a, String>,
 }
 
-impl Verse {
+impl<'a> Verse<'a> {
     pub fn frequency(&self) -> Frequency {
         Frequency::new(self.weeks_in)
+    }
+
+    pub fn add_offset(&mut self, weeks: i64) {
+        self.weeks_in += weeks;
+    }
+
+    pub fn with_offset(&self, weeks: i64) -> Self {
+        let mut it = self.clone();
+        it.weeks_in += weeks;
+        it
     }
 
     pub fn is_daily(&self) -> bool {
@@ -176,9 +189,9 @@ impl Frequency {
 
 #[derive(Debug)]
 pub struct VersesForADay<'a> {
-    daily: Vec<&'a Verse>,
-    weekly: Vec<&'a Verse>,
-    monthly: Vec<&'a Verse>,
+    daily: Vec<Verse<'a>>,
+    weekly: Vec<Verse<'a>>,
+    monthly: Vec<Verse<'a>>,
 }
 
 #[derive(Debug)]
@@ -188,12 +201,22 @@ pub struct VersesForAWeek<'a> {
 }
 
 impl<'a> VersesForAWeek<'a> {
-    pub fn new(verses: &'a Vec<Verse>, n: i64) -> Self {
-        let daily: Vec<_> = verses.iter().filter(|verse| verse.is_daily()).collect();
-        let weekly: Vec<_> = verses.iter().filter(|verse| verse.is_weekly()).collect();
+    // pub fn new(verses: &'a Vec<Verse>, n: i64) -> Self {
+    pub fn new<'b>(verses: &'b Vec<Verse<'a>>, n: i64) -> Self {
+        let daily: Vec<_> = verses
+            .iter()
+            .filter(|verse| verse.is_daily())
+            .cloned()
+            .collect();
+        let weekly: Vec<_> = verses
+            .iter()
+            .filter(|verse| verse.is_weekly())
+            .cloned()
+            .collect();
         let monthly: Vec<_> = verses
             .iter()
             .filter(|verse| verse.is_monthly_week(n))
+            .cloned()
             .collect();
         let weekly = split_into_n_parts(weekly, 7);
         let monthly = split_into_n_parts(monthly, 7);
@@ -219,7 +242,10 @@ pub struct VersesForAMonth<'a> {
 impl<'a> VersesForAMonth<'a> {
     pub fn new(verses: &'a Vec<Verse>) -> Self {
         let weeks = (1..=4)
-            .map(|n| VersesForAWeek::new(verses, n))
+            .map(|n| {
+                let verses = verses.iter().map(|v| v.with_offset(n)).collect_vec();
+                VersesForAWeek::new(&verses, n)
+            })
             .collect_vec();
         // vec![
         //     VersesForAWeek::new(verses, 1),
