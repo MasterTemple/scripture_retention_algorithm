@@ -106,17 +106,8 @@ impl<'a> Verse<'a> {
         self.frequency() == Frequency::Weekly
     }
 
-    /**
-    I am not doing this monthly according to a calendar.
-    Monthly means once every 4 weeks.
-    This allows for an implementation that checks if:
-    1. This verse should be recited monthly
-    2. This is every 4th week
-    */
-    pub fn is_monthly_this_week(&self) -> bool {
-        let is_monthly = self.frequency() == Frequency::Monthly;
-        let is_monthly_this_week = self.weeks_in % 4 == 1;
-        is_monthly && is_monthly_this_week
+    pub fn is_monthly(&self) -> bool {
+        self.frequency() == Frequency::Monthly
     }
 
     pub fn is_monthly_week(&self, n: i64) -> bool {
@@ -177,12 +168,28 @@ impl<'a> VersesForAWeek<'a> {
             .filter(|verse| verse.with_offset(n).is_weekly())
             .cloned()
             .collect();
+
+        // let monthly: Vec<_> = verses
+        //     .iter()
+        //     .filter(|verse| verse.is_monthly_week(n))
+        //     .cloned()
+        //     .collect();
+
+        // I should use total monthly count
         let monthly: Vec<_> = verses
             .iter()
-            // .filter(|verse| verse.is_monthly_week(n))
-            .filter(|verse| verse.is_monthly_week(n))
+            .filter(|verse| verse.is_monthly())
             .cloned()
-            .collect();
+            .collect_vec();
+        let bin = monthly.len() / 4;
+        let monthly = monthly
+            .into_iter()
+            .skip(n as usize * bin)
+            .take(bin)
+            .collect_vec();
+        // .cloned()
+        // .collect();
+
         let weekly = split_into_n_parts(weekly, 7);
         let monthly = split_into_n_parts(monthly, 7);
         let days = weekly
@@ -206,11 +213,7 @@ pub struct VersesForAMonth<'a> {
 impl<'a> VersesForAMonth<'a> {
     pub fn new(verses: &'a Vec<Verse>) -> Self {
         let weeks = (0..=3)
-            .map(|n| {
-                // perhaps [`VersesForAWeek::new`] should do the offset
-                // let verses = verses.iter().map(|v| v.with_offset(n)).collect_vec();
-                VersesForAWeek::new(&verses, n)
-            })
+            .map(|n| VersesForAWeek::new(&verses, n))
             .collect_vec();
         Self { weeks }
     }
