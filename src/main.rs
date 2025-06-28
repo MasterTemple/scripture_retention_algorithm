@@ -110,6 +110,10 @@ impl<'a> Verse<'a> {
         self.frequency() == Frequency::Monthly
     }
 
+    pub fn will_be_monthly_this_month(&self, n: i64) -> bool {
+        self.is_monthly() || self.with_offset(n).is_monthly()
+    }
+
     pub fn is_monthly_week(&self, n: i64) -> bool {
         let is_monthly = self.frequency() == Frequency::Monthly;
         let is_monthly_this_week = self.weeks_in % 4 == n;
@@ -172,7 +176,9 @@ impl<'a> VersesForAWeek<'a> {
 
         let monthly: Vec<_> = verses
             .iter()
-            .filter(|verse| verse.is_monthly())
+            // I actually want this to be "is monthly" or "will be monthly this month"
+            // .filter(|verse| verse.is_monthly())
+            .filter(|verse| verse.will_be_monthly_this_month(n))
             .cloned()
             .collect_vec();
         let bin = monthly.len() / 4;
