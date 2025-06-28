@@ -174,11 +174,12 @@ impl<'a> VersesForAWeek<'a> {
             .collect();
         let weekly: Vec<_> = verses
             .iter()
-            .filter(|verse| verse.is_weekly())
+            .filter(|verse| verse.with_offset(n).is_weekly())
             .cloned()
             .collect();
         let monthly: Vec<_> = verses
             .iter()
+            // .filter(|verse| verse.is_monthly_week(n))
             .filter(|verse| verse.is_monthly_week(n))
             .cloned()
             .collect();
@@ -207,7 +208,7 @@ impl<'a> VersesForAMonth<'a> {
         let weeks = (0..=3)
             .map(|n| {
                 // perhaps [`VersesForAWeek::new`] should do the offset
-                let verses = verses.iter().map(|v| v.with_offset(n)).collect_vec();
+                // let verses = verses.iter().map(|v| v.with_offset(n)).collect_vec();
                 VersesForAWeek::new(&verses, n)
             })
             .collect_vec();
@@ -222,10 +223,12 @@ impl<'a> VersesForAMonth<'a> {
                     .iter()
                     .map(|day| {
                         format!(
+                            // "D: {} | W: {} | M: {}\n{}",
                             "D: {} | W: {} | M: {}",
                             day.daily.len(),
                             day.weekly.len(),
-                            day.monthly.len()
+                            day.monthly.len(),
+                            // day.monthly.iter().map(|v| &v.reference).join(" + "),
                         )
                     })
                     .join("\n")
