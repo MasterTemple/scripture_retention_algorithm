@@ -4,7 +4,7 @@ pub type AnyResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 use std::borrow::Cow;
 
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use itertools::Itertools;
 
 fn split_into_n_parts<T: Clone>(vec: Vec<T>, n: usize) -> Vec<Vec<T>> {
@@ -148,7 +148,7 @@ impl Frequency {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct VersesForADay<'a> {
     daily: Vec<Verse<'a>>,
     weekly: Vec<Verse<'a>>,
@@ -238,6 +238,59 @@ impl<'a> VersesForAMonth<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct ScheduledVerses<'a> {
+    date: NaiveDate,
+    verses: Vec<Verse<'a>>,
+}
+impl<'a> ScheduledVerses<'a> {
+    pub fn new(
+        date: &str,
+        verses: impl IntoIterator<Item = &'a VerseEntry> + 'a,
+    ) -> AnyResult<Self> {
+        let date = NaiveDate::parse_from_str(date, FMT)?;
+        let verses = verses
+            .into_iter()
+            .map(|verse| verse.calculate_relative(date))
+            .collect();
+        Ok(Self { date, verses })
+    }
+
+    pub fn monthly_schedule(&'a self) -> VersesForAMonth<'a> {
+        VersesForAMonth::new(&self.verses)
+    }
+
+    pub fn current_week_offset(&self) -> usize {
+        self.verses
+            .first()
+            .map(|v| {
+                if v.weeks_in < 0 {
+                    0
+                } else {
+                    (v.weeks_in % 4) as usize
+                }
+            })
+            .unwrap_or(0)
+    }
+
+    pub fn for_today(&'a self) -> VersesForADay<'a> {
+        let week = self.current_week_offset();
+        let m = self.monthly_schedule();
+        let week = m.weeks.get(week);
+
+        let result = week
+            .map(|week| {
+                week.days
+                    .get(self.date.weekday().num_days_from_sunday() as usize)
+                    .cloned()
+            })
+            .flatten()
+            .unwrap_or_default();
+
+        result
+    }
+}
+
 fn main() -> AnyResult<()> {
     // let date = "2025-07-06";
     let date = "2033-02-06";
@@ -253,10 +306,24 @@ fn main() -> AnyResult<()> {
     })
     .collect_vec();
 
-    let list = VerseList::new(date, references)?;
-    let verses = list.relative_verses();
+    // let list = VerseList::new(date, references)?;
+    // let verses = list.relative_verses();
 
-    println!("{}", VersesForAMonth::new(&verses).stats());
+    // let verses = ScheduledVerses::new("2025-06-28", &references)?;
+    // println!("{}", verses.monthly_schedule().stats());
+    //
+    // let verses = ScheduledVerses::new("2025-07-06", &references)?;
+    // println!("{}", verses.monthly_schedule().stats());
+    //
+    // let verses = ScheduledVerses::new("2025-07-13", &references)?;
+    // println!("{}", verses.monthly_schedule().stats());
+    // dbg!(&verses.for_today());
+
+    let days = vec!["2025-07-13"];
+    for day in days {
+        let verses = ScheduledVerses::new(day, &references)?;
+        dbg!(&verses.for_today());
+    }
 
     Ok(())
 }
