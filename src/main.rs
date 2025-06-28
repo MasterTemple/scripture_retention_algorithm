@@ -163,19 +163,13 @@ impl<'a> VersesForAWeek<'a> {
             .filter(|verse| verse.is_daily())
             .cloned()
             .collect();
+
         let weekly: Vec<_> = verses
             .iter()
             .filter(|verse| verse.with_offset(n).is_weekly())
             .cloned()
             .collect();
 
-        // let monthly: Vec<_> = verses
-        //     .iter()
-        //     .filter(|verse| verse.is_monthly_week(n))
-        //     .cloned()
-        //     .collect();
-
-        // I should use total monthly count
         let monthly: Vec<_> = verses
             .iter()
             .filter(|verse| verse.is_monthly())
@@ -187,8 +181,6 @@ impl<'a> VersesForAWeek<'a> {
             .skip(n as usize * bin)
             .take(bin)
             .collect_vec();
-        // .cloned()
-        // .collect();
 
         let weekly = split_into_n_parts(weekly, 7);
         let monthly = split_into_n_parts(monthly, 7);
@@ -226,12 +218,12 @@ impl<'a> VersesForAMonth<'a> {
                     .iter()
                     .map(|day| {
                         format!(
-                            // "D: {} | W: {} | M: {}\n{}",
-                            "D: {} | W: {} | M: {}",
+                            "D: {} | W: {} | M: {}\n{}",
+                            // "D: {} | W: {} | M: {}",
                             day.daily.len(),
                             day.weekly.len(),
                             day.monthly.len(),
-                            // day.monthly.iter().map(|v| &v.reference).join(" + "),
+                            day.monthly.iter().map(|v| &v.reference).join(" + "),
                         )
                     })
                     .join("\n")
