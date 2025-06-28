@@ -155,6 +155,20 @@ pub struct VersesForADay<'a> {
     monthly: Vec<Verse<'a>>,
 }
 
+impl<'a> VersesForADay<'a> {
+    pub fn data(&self) -> String {
+        let daily = self.daily.iter().map(|v| &v.reference).join("\n- ");
+        let weekly = self.weekly.iter().map(|v| &v.reference).join("\n- ");
+        let monthly = self.monthly.iter().map(|v| &v.reference).join("\n- ");
+        vec![
+            format!("### Daily: \n- {}", daily),
+            format!("### Weekly: \n- {}", weekly),
+            format!("### Monthly: \n- {}", monthly),
+        ]
+        .join("\n\n")
+    }
+}
+
 #[derive(Debug)]
 pub struct VersesForAWeek<'a> {
     days: Vec<VersesForADay<'a>>,
@@ -319,10 +333,18 @@ fn main() -> AnyResult<()> {
     // println!("{}", verses.monthly_schedule().stats());
     // dbg!(&verses.for_today());
 
-    let days = vec!["2025-07-13"];
+    // let days = vec!["2025-08-24"];
+    let days = std::fs::read_to_string(
+        "/home/dgmastertemple/Development/rust/scripture_retention_algorithm/days.txt",
+    )?
+    .lines()
+    .map(|l| l.trim().to_string())
+    .collect_vec();
+
     for day in days {
-        let verses = ScheduledVerses::new(day, &references)?;
-        dbg!(&verses.for_today());
+        let verses = ScheduledVerses::new(day.as_str(), &references)?;
+        // dbg!(&verses.for_today());
+        println!("## {}\n\n{}\n", day, &verses.for_today().data());
     }
 
     Ok(())
