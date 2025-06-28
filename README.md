@@ -43,3 +43,11 @@ so perhaps what i can do is some modulus math to determine every nth week (where
 
 for daily, it is everything
 for weekly, i just say "what is to be done weekly" and then divide it into 7 groups
+
+---
+
+so I need to get daily, weekly, and monthly
+then organize it by week:
+- daily: every day
+- weekly: once that week
+- monthly: once that week (if it is the 4th week)

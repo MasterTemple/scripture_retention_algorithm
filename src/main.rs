@@ -3,7 +3,53 @@
 pub type AnyResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 use chrono::NaiveDate;
+use itertools::Itertools;
 
+fn split_into_n_parts<T: Clone>(vec: Vec<T>, n: usize) -> Vec<Vec<T>> {
+    let len = vec.len();
+    let base = len / n;
+    let remainder = len % n;
+
+    let mut result = Vec::with_capacity(n);
+    let mut start = 0;
+
+    for i in 0..n {
+        let extra = if i < remainder { 1 } else { 0 };
+        let end = start + base + extra;
+        result.push(vec[start..end].to_vec());
+        start = end;
+    }
+
+    result
+}
+
+// fn split_into_n_parts<T: Clone, const N: usize>(vec: Vec<T>) -> [Vec<T>; N] {
+//     let len = vec.len();
+//     let base = len / N;
+//     let remainder = len % N;
+//
+//     let mut result = Vec::with_capacity(N);
+//     let mut start = 0;
+//
+//     for i in 0..N {
+//         let extra = if i < remainder { 1 } else { 0 };
+//         let end = start + base + extra;
+//         result.push(vec[start..end].to_vec());
+//         start = end;
+//     }
+//
+//     [
+//         result[0],
+//         result[1],
+//         result[2],
+//         result[3],
+//         result[4],
+//         result[5],
+//         result[6],
+//     ]
+// }
+
+#[derive(Debug)]
 pub struct VerseEntry {
     date: NaiveDate,
     reference: String,
@@ -12,22 +58,22 @@ pub struct VerseEntry {
 const FMT: &'static str = "%Y-%m-%d";
 
 impl VerseEntry {
-    pub fn new(date: &str, reference: String) -> AnyResult<Self> {
+    pub fn new(date: &str, reference: impl Into<String>) -> AnyResult<Self> {
+        let reference = reference.into();
         let date = NaiveDate::parse_from_str(date, FMT)?;
         Ok(Self { date, reference })
     }
 
-    // I am doing this wrong, I need both the start date and today
-    pub fn weeks_in(&self, start: NaiveDate) -> i64 {
-        (self.date - start).num_weeks()
+    pub fn weeks_in(&self, today: NaiveDate) -> i64 {
+        (today - self.date).num_weeks()
     }
 
-    pub fn frequency(&self, start: NaiveDate) -> Frequency {
-        Frequency::new(self.weeks_in(start))
+    pub fn frequency(&self, today: NaiveDate) -> Frequency {
+        Frequency::new(self.weeks_in(today))
     }
 
-    pub fn calculate_relative(&self, start: NaiveDate) -> Verse {
-        let weeks_in = self.weeks_in(start);
+    pub fn calculate_relative(&self, today: NaiveDate) -> Verse {
+        let weeks_in = self.weeks_in(today);
         Verse {
             weeks_in,
             reference: self.reference.clone(),
@@ -35,25 +81,27 @@ impl VerseEntry {
     }
 }
 
+#[derive(Debug)]
 pub struct VerseList {
-    start: NaiveDate,
+    today: NaiveDate,
     references: Vec<VerseEntry>,
 }
 
 impl VerseList {
     pub fn new(date: &str, references: Vec<VerseEntry>) -> AnyResult<Self> {
-        let start = NaiveDate::parse_from_str(date, FMT)?;
-        Ok(Self { start, references })
+        let today = NaiveDate::parse_from_str(date, FMT)?;
+        Ok(Self { today, references })
     }
 
     pub fn relative_verses(&self) -> Vec<Verse> {
         self.references
             .iter()
-            .map(|verse| verse.calculate_relative(self.start))
+            .map(|verse| verse.calculate_relative(self.today))
             .collect()
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Verse {
     weeks_in: i64,
     reference: String,
@@ -82,6 +130,12 @@ impl Verse {
     pub fn is_monthly_this_week(&self) -> bool {
         let is_monthly = self.frequency() == Frequency::Monthly;
         let is_monthly_this_week = self.weeks_in % 4 == 1;
+        is_monthly && is_monthly_this_week
+    }
+
+    pub fn is_monthly_week(&self, n: i64) -> bool {
+        let is_monthly = self.frequency() == Frequency::Monthly;
+        let is_monthly_this_week = self.weeks_in % 4 == n;
         is_monthly && is_monthly_this_week
     }
 }
@@ -119,19 +173,82 @@ impl Frequency {
 //     completion: String,
 //     reference: String,
 // }
-//
-// pub struct TodaysVerses {
-//     daily: Vec<Verse>,
-//     weekly: Vec<Verse>,
-//     yearly: Vec<Verse>,
-// }
+
+#[derive(Debug)]
+pub struct VersesForADay<'a> {
+    daily: Vec<&'a Verse>,
+    weekly: Vec<&'a Verse>,
+    monthly: Vec<&'a Verse>,
+}
+
+#[derive(Debug)]
+pub struct VersesForAWeek<'a> {
+    // days: [VersesForADay; 7],
+    days: Vec<VersesForADay<'a>>,
+}
+
+impl<'a> VersesForAWeek<'a> {
+    pub fn new(verses: &'a Vec<Verse>, n: i64) -> Self {
+        let daily: Vec<_> = verses.iter().filter(|verse| verse.is_daily()).collect();
+        let weekly: Vec<_> = verses.iter().filter(|verse| verse.is_weekly()).collect();
+        let monthly: Vec<_> = verses
+            .iter()
+            .filter(|verse| verse.is_monthly_week(n))
+            .collect();
+        let weekly = split_into_n_parts(weekly, 7);
+        let monthly = split_into_n_parts(monthly, 7);
+        let days = weekly
+            .into_iter()
+            .zip(monthly)
+            .map(|(weekly, monthly)| VersesForADay {
+                daily: daily.clone(),
+                weekly,
+                monthly,
+            })
+            .collect_vec();
+        Self { days }
+    }
+}
+
+#[derive(Debug)]
+pub struct VersesForAMonth<'a> {
+    // weeks: [VersesForAWeek<'a>; 4],
+    weeks: Vec<VersesForAWeek<'a>>,
+}
+
+impl<'a> VersesForAMonth<'a> {
+    pub fn new(verses: &'a Vec<Verse>) -> Self {
+        let weeks = (1..=4)
+            .map(|n| VersesForAWeek::new(verses, n))
+            .collect_vec();
+        // vec![
+        //     VersesForAWeek::new(verses, 1),
+        //     VersesForAWeek::new(verses, 2),
+        //     VersesForAWeek::new(verses, 3),
+        //     VersesForAWeek::new(verses, 4),
+        // ];
+        Self { weeks }
+        // let week1 = VersesForAWeek { days: vec![] };
+        // let week2 = VersesForAWeek { days: vec![] };
+        // let week3 = VersesForAWeek { days: vec![] };
+        // let week4 = VersesForAWeek { days: vec![] };
+        // Self {
+        //     weeks: [week1, week2, week3, week4],
+        // }
+    }
+}
 
 fn main() -> AnyResult<()> {
-    let fmt = "%Y-%m-%d";
-    let first = NaiveDate::parse_from_str("2025-07-06", fmt)?;
-    let second = NaiveDate::parse_from_str("2025-07-13", fmt)?;
-    let diff = second - first;
-    dbg!(diff.num_weeks());
+    let date = "2025-07-06";
+    let references = vec![
+        VerseEntry::new("2025-07-06", "John 1:1")?,
+        VerseEntry::new("2025-07-13", "John 1:2")?,
+    ];
+    let list = VerseList::new(date, references)?;
+    let verses = list.relative_verses();
+
+    dbg!(VersesForAWeek::new(&verses, 1));
+    dbg!(VersesForAMonth::new(&verses));
 
     Ok(())
 }
@@ -141,14 +258,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn idk() -> AnyResult<()> {
+        let date = "2025-07-06";
+        let references = vec![
+            VerseEntry::new("2025-07-06", "John 1:1")?,
+            VerseEntry::new("2025-07-13", "John 1:2")?,
+        ];
+        let list = VerseList::new(date, references)?;
+        let verses = list.relative_verses();
+
+        VersesForAMonth::new(&verses);
+
+        Ok(())
+    }
+
+    // #[test]
     fn daily() -> AnyResult<()> {
         let reference = "John 1:1".to_string();
-        let start = NaiveDate::parse_from_str("2025-07-06", FMT)?;
+        let today = NaiveDate::parse_from_str("2025-07-06", FMT)?;
 
         macro_rules! check_entry {
             ($date:literal, $freq:ident) => {
                 assert_eq!(
-                    VerseEntry::new($date, "John 1:1".to_string())?.frequency(start),
+                    VerseEntry::new($date, "John 1:1".to_string())?.frequency(today),
                     Frequency::$freq,
                 )
             };
