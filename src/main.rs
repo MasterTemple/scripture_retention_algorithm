@@ -111,7 +111,12 @@ impl<'a> Verse<'a> {
     }
 
     pub fn will_be_monthly_this_month(&self, n: i64) -> bool {
-        self.is_monthly() || self.with_offset(n).is_monthly()
+        // self.with_offset(4 - n).is_monthly()
+        //     || self.is_monthly()
+        //     || self.with_offset(n).is_monthly()
+        self.with_offset(3 - n).is_monthly()
+            || self.is_monthly()
+            || self.with_offset(n).is_monthly()
     }
 
     pub fn is_monthly_week(&self, n: i64) -> bool {
@@ -287,7 +292,7 @@ impl<'a> ScheduledVerses<'a> {
             .unwrap_or(0)
     }
 
-    pub fn for_today(&'a self) -> VersesForADay<'a> {
+    pub fn for_today(&self) -> VersesForADay<'_> {
         let week = self.current_week_offset();
         let m = self.monthly_schedule();
         let week = m.weeks.get(week);
@@ -350,11 +355,46 @@ fn main() -> AnyResult<()> {
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn idk() -> AnyResult<()> {
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn monthly() -> AnyResult<()> {
+        let references = std::fs::read_to_string(
+            "/home/dgmastertemple/Development/rust/scripture_retention_algorithm/input.txt",
+        )?
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .split_once(" | ")
+                .and_then(|(date, verse)| VerseEntry::new(date, verse).ok())
+        })
+        .collect_vec();
+
+        let days = std::fs::read_to_string(
+            "/home/dgmastertemple/Development/rust/scripture_retention_algorithm/days.txt",
+        )?
+        .lines()
+        .map(|l| l.trim().to_string())
+        .collect_vec();
+
+        // let res = days
+        //     .iter()
+        //     .filter_map(|day| {
+        //         ScheduledVerses::new(day.as_str(), &references)
+        //             .ok()
+        //             .map(|v| v.for_today().monthly)
+        //     })
+        //     .flatten()
+        //     .collect_vec();
+
+        // for day in days {
+        //     let verses = ScheduledVerses::new(day.as_str(), &references)?;
+        //     // dbg!(&verses.for_today());
+        //     println!("## {}\n\n{}\n", day, &verses.for_today().data());
+        // }
+
+        Ok(())
+    }
+}
