@@ -22,3 +22,9 @@ Doing it at this rate will result in reciting 23 verses each day, but that is af
 At that point, it will be a very manageable 5-10 minute activity each day.
 
 You are free to add as many verses as you would like per week, however it is encouraged that you prioritize maintaining and reviewing previous verses, rather than memorizing more and more, lest in you forget what you have worked towards.
+
+## Google Sheets
+
+1. Copy and paste the contents of `./google_sheets.js` into a Google Apps Script project
+2. Put `const DISCORD_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/...';` in separate code file
+
